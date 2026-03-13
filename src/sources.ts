@@ -1,0 +1,172 @@
+import RSSParser from "rss-parser";
+
+export interface Article {
+  title: string;
+  url: string;
+  content: string;
+  source: string;
+  imageUrl?: string;
+}
+
+const AI_KEYWORDS = ["AI", "LLM", "GPT", "machine learning", "artificial intelligence", "deep learning"];
+
+function containsAIKeyword(text: string): boolean {
+  const lower = text.toLowerCase();
+  return AI_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()));
+}
+
+// Extract image URL from RSS item (tries multiple common fields)
+function extractRssImage(item: any): string | undefined {
+  return (
+    item["media:thumbnail"]?.$.url ||
+    item["media:content"]?.$.url ||
+    item.enclosure?.url ||
+    undefined
+  );
+}
+
+async function fetchHackerNews(): Promise<Article[]> {
+  const topStoriesRes = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json");
+  const ids: number[] = await topStoriesRes.json();
+
+  const top100 = ids.slice(0, 100);
+  const items = await Promise.allSettled(
+    top100.map((id) =>
+      fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then((r) => r.json())
+    )
+  );
+
+  const articles: Article[] = [];
+  for (const result of items) {
+    if (result.status !== "fulfilled") continue;
+    const item = result.value;
+    if (!item || !item.title || !item.url) continue;
+    if (!containsAIKeyword(item.title)) continue;
+
+    articles.push({
+      title: item.title,
+      url: item.url,
+      content: item.text ? item.text.replace(/<[^>]*>/g, "").slice(0, 500) : "",
+      source: "HackerNews",
+    });
+  }
+  return articles;
+}
+
+async function fetchReddit(): Promise<Article[]> {
+  const subreddits = [
+    "https://www.reddit.com/r/MachineLearning/top.json?t=day&limit=25",
+    "https://www.reddit.com/r/artificial/top.json?t=day&limit=25",
+  ];
+
+  const headers = { "User-Agent": "ai-cases-scout/1.0 (automated research tool)" };
+  const articles: Article[] = [];
+
+  for (const url of subreddits) {
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      console.warn(`Reddit fetch failed for ${url}: ${res.status}`);
+      continue;
+    }
+    const data = await res.json();
+    const posts = data?.data?.children ?? [];
+
+    for (const post of posts) {
+      const { title, url: postUrl, selftext, subreddit, thumbnail } = post.data;
+      if (!title || !postUrl) continue;
+
+      const validThumbnail =
+        thumbnail && thumbnail.startsWith("http") ? thumbnail : undefined;
+
+      articles.push({
+        title,
+        url: postUrl.startsWith("https://www.reddit.com")
+          ? `https://reddit.com${post.data.permalink}`
+          : postUrl,
+        content: (selftext ?? "").slice(0, 500),
+        source: `Reddit r/${subreddit}`,
+        imageUrl: validThumbnail,
+      });
+    }
+  }
+  return articles;
+}
+
+async function fetchRSS(): Promise<Article[]> {
+  const feeds = [
+    // News
+    { url: "https://techcrunch.com/category/artificial-intelligence/feed/", source: "TechCrunch" },
+    { url: "https://venturebeat.com/category/ai/feed/", source: "VentureBeat" },
+    { url: "https://www.technologyreview.com/feed/", source: "MIT Technology Review" },
+    // Product系
+    { url: "https://www.producthunt.com/feed", source: "Product Hunt" },
+    // コラム・海外AI雰囲気
+    { url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", source: "The Verge AI" },
+    { url: "https://www.wired.com/feed/tag/ai/latest/rss", source: "Wired AI" },
+    { url: "https://a16z.com/feed/", source: "a16z" },
+  ];
+
+  const parser = new RSSParser({
+    customFields: {
+      item: [
+        ["media:thumbnail", "media:thumbnail"],
+        ["media:content", "media:content"],
+      ],
+    },
+  });
+
+  const articles: Article[] = [];
+
+  for (const feed of feeds) {
+    try {
+      const parsed = await parser.parseURL(feed.url);
+      for (const item of parsed.items ?? []) {
+        if (!item.title || !item.link) continue;
+
+        const isProduct = feed.source === "Product Hunt";
+        // Product Hunt: only keep AI-related products
+        if (isProduct && !containsAIKeyword(item.title + " " + (item.contentSnippet ?? ""))) continue;
+
+        const content = (item.contentSnippet ?? item.content ?? "").slice(0, 500);
+        const imageUrl = extractRssImage(item as any);
+
+        articles.push({
+          title: item.title,
+          url: item.link,
+          content,
+          source: feed.source,
+          imageUrl,
+        });
+      }
+    } catch (err) {
+      console.warn(`RSS fetch failed for ${feed.url}:`, err);
+    }
+  }
+  return articles;
+}
+
+export async function fetchAllArticles(): Promise<Article[]> {
+  const [hn, reddit, rss] = await Promise.allSettled([
+    fetchHackerNews(),
+    fetchReddit(),
+    fetchRSS(),
+  ]);
+
+  const all: Article[] = [];
+  if (hn.status === "fulfilled") all.push(...hn.value);
+  else console.warn("HackerNews fetch failed:", hn.reason);
+
+  if (reddit.status === "fulfilled") all.push(...reddit.value);
+  else console.warn("Reddit fetch failed:", reddit.reason);
+
+  if (rss.status === "fulfilled") all.push(...rss.value);
+  else console.warn("RSS fetch failed:", rss.reason);
+
+  const counts = {
+    hn: hn.status === "fulfilled" ? hn.value.length : 0,
+    reddit: reddit.status === "fulfilled" ? reddit.value.length : 0,
+    rss: rss.status === "fulfilled" ? rss.value.length : 0,
+  };
+  console.log(`Fetched ${all.length} articles total (HN: ${counts.hn}, Reddit: ${counts.reddit}, RSS: ${counts.rss})`);
+  return all;
+}
