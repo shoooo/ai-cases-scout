@@ -63,7 +63,7 @@ function buildSlackMessage(
     };
   }
 
-  const top = useCases.slice(0, 5);
+  const top = useCases.slice(0, 10);
   const cards = top.flatMap((article, i) => articleCard(article, i));
 
   return {
