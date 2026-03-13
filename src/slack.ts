@@ -28,8 +28,9 @@ function articleCard(article: EvaluatedArticle, index: number): object[] {
   }
 
   // Context block: summary + impact
+  const summary = evaluation.summary_ja.replace(/\n+/g, " ").trim();
   const contextElements: object[] = [
-    { type: "mrkdwn", text: evaluation.summary_ja },
+    { type: "mrkdwn", text: summary },
   ];
   if (impact) {
     contextElements.push({ type: "mrkdwn", text: `*インパクト:* ${impact}` });
