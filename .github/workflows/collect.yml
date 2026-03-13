@@ -19,6 +19,13 @@ jobs:
 
       - run: npm ci
 
+      - uses: actions/cache@v4
+        with:
+          path: seen-urls.json
+          key: seen-urls-${{ github.run_id }}
+          restore-keys: |
+            seen-urls-
+
       - run: npx ts-node api/collect.ts
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

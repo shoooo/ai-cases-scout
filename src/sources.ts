@@ -26,12 +26,15 @@ function extractRssImage(item: any): string | undefined {
 }
 
 async function fetchHackerNews(): Promise<Article[]> {
+  const LOOKBACK_HOURS = 12;
+  const cutoff = Math.floor(Date.now() / 1000) - LOOKBACK_HOURS * 3600;
+
   const topStoriesRes = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json");
   const ids: number[] = await topStoriesRes.json();
 
-  const top100 = ids.slice(0, 100);
+  const top200 = ids.slice(0, 200);
   const items = await Promise.allSettled(
-    top100.map((id) =>
+    top200.map((id) =>
       fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then((r) => r.json())
     )
   );
@@ -41,6 +44,7 @@ async function fetchHackerNews(): Promise<Article[]> {
     if (result.status !== "fulfilled") continue;
     const item = result.value;
     if (!item || !item.title || !item.url) continue;
+    if (item.time && item.time < cutoff) continue;
     if (!containsAIKeyword(item.title)) continue;
 
     articles.push({
@@ -120,7 +124,10 @@ async function fetchRSS(): Promise<Article[]> {
   for (const feed of feeds) {
     try {
       const parsed = await parser.parseURL(feed.url);
+      const MAX_PER_FEED = 8;
+      let feedCount = 0;
       for (const item of parsed.items ?? []) {
+        if (feedCount >= MAX_PER_FEED) break;
         if (!item.title || !item.link) continue;
 
         const isProduct = feed.source === "Product Hunt";
@@ -137,6 +144,7 @@ async function fetchRSS(): Promise<Article[]> {
           source: feed.source,
           imageUrl,
         });
+        feedCount++;
       }
     } catch (err) {
       console.warn(`RSS fetch failed for ${feed.url}:`, err);
