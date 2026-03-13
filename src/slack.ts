@@ -5,12 +5,18 @@ function articleCard(article: EvaluatedArticle, index: number): object[] {
   const industry = evaluation.industry;
   const impact = evaluation.business_impact;
 
+  const typeLabel = evaluation.is_use_case && evaluation.is_product_launch
+    ? "🏭 活用事例 / 🚀 新プロダクト"
+    : evaluation.is_product_launch
+    ? "🚀 新プロダクト"
+    : "🏭 活用事例";
+
   // Title block with optional thumbnail
   const titleSection: any = {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `*${index + 1}. <${url}|${title}>*\n:label: ${industry}　:newspaper: ${source}`,
+      text: `*${index + 1}. <${url}|${title}>*\n${typeLabel}　:label: ${industry}　:newspaper: ${source}`,
     },
   };
   if (imageUrl) {
@@ -48,7 +54,7 @@ function buildSlackMessage(
     day: "2-digit",
   });
 
-  const headerText = `AI活用事例 | ${sessionLabel}の収集完了 (${date})`;
+  const headerText = `AI動向まとめ | ${sessionLabel}の収集完了 (${date})`;
   const subText = `チェック: ${checked}件　→　事例: ${useCases.length}件`;
 
   if (useCases.length === 0) {

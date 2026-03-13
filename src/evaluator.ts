@@ -3,6 +3,7 @@ import type { Article } from "./sources";
 
 export interface Evaluation {
   is_use_case: boolean;
+  is_product_launch: boolean;
   summary_ja: string;
   business_impact: string | null;
   industry: string;
@@ -18,19 +19,29 @@ function getClient(): Anthropic {
   return client;
 }
 
-const SYSTEM_PROMPT = `あなたは海外のAI活用事例を調査するリサーチアシスタントです。
-記事を分析し、実際の企業によるAI活用事例かどうかを判定してください。
+const SYSTEM_PROMPT = `あなたは海外のAI動向を調査するリサーチアシスタントです。
+記事を分析し、以下の2つの観点で判定してください。
 
-判定基準:
-- is_use_case: true → 実際の企業・組織がAIを業務/製品に活用している事例
-- is_use_case: false → 研究論文、モデル発表、技術解説、意見記事など
+【is_use_case】
+実際の企業・組織がAIを業務や製品に活用している具体的な事例かどうか。
+- true: 企業・組織によるAI導入・活用の実例（業務効率化、製品機能、顧客向けサービスなど）
+- false: 研究論文、モデル発表のみ、技術解説、意見記事など
+
+【is_product_launch】
+新しいAIプロダクト・ツール・サービスのリリース情報かどうか。
+- true: AIを中核とした新製品・新機能・新サービスの発表やローンチ
+- false: 既存製品のニュース、技術解説、事例記事など
+
+※ is_use_case と is_product_launch は両方 true になることもある（例：企業がAI新製品をリリースした事例）
+※ どちらも false の場合はスキップ対象
 
 必ず以下のJSON形式のみで回答してください（他のテキストは含めない）:
 {
   "is_use_case": boolean,
+  "is_product_launch": boolean,
   "summary_ja": "3〜5文の日本語要約",
   "business_impact": "定量/定性的な成果（不明な場合はnull）",
-  "industry": "業界分類（医療/金融/EC/製造/教育/メディア/物流/HR/その他）"
+  "industry": "業界分類（医療/金融/EC/製造/教育/メディア/物流/HR/デベロッパーツール/その他）"
 }`;
 
 async function evaluateOne(article: Article): Promise<Evaluation> {

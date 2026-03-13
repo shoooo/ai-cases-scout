@@ -130,10 +130,6 @@ async function fetchRSS(): Promise<Article[]> {
         if (feedCount >= MAX_PER_FEED) break;
         if (!item.title || !item.link) continue;
 
-        const isProduct = feed.source === "Product Hunt";
-        // Product Hunt: only keep AI-related products
-        if (isProduct && !containsAIKeyword(item.title + " " + (item.contentSnippet ?? ""))) continue;
-
         const content = (item.contentSnippet ?? item.content ?? "").slice(0, 500);
         const imageUrl = extractRssImage(item as any);
 
@@ -170,11 +166,19 @@ export async function fetchAllArticles(): Promise<Article[]> {
   if (rss.status === "fulfilled") all.push(...rss.value);
   else console.warn("RSS fetch failed:", rss.reason);
 
+  // Deduplicate by URL within a single run
+  const seenUrls = new Set<string>();
+  const deduped = all.filter((a) => {
+    if (seenUrls.has(a.url)) return false;
+    seenUrls.add(a.url);
+    return true;
+  });
+
   const counts = {
     hn: hn.status === "fulfilled" ? hn.value.length : 0,
     reddit: reddit.status === "fulfilled" ? reddit.value.length : 0,
     rss: rss.status === "fulfilled" ? rss.value.length : 0,
   };
-  console.log(`Fetched ${all.length} articles total (HN: ${counts.hn}, Reddit: ${counts.reddit}, RSS: ${counts.rss})`);
-  return all;
+  console.log(`Fetched ${deduped.length} articles total after dedup (HN: ${counts.hn}, Reddit: ${counts.reddit}, RSS: ${counts.rss})`);
+  return deduped;
 }
