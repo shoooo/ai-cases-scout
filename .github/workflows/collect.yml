@@ -2,8 +2,8 @@ name: AI Cases Scout
 
 on:
   schedule:
-    - cron: "0 21 * * *"  # JST 6:00
-    - cron: "0 12 * * *"  # JST 21:00
+    - cron: "0 23 * * *"  # JST 8:00
+    - cron: "0 11 * * *"  # JST 20:00
   workflow_dispatch:       # 手動実行も可能
 
 jobs:
