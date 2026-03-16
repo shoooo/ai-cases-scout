@@ -25,6 +25,28 @@ function extractRssImage(item: any): string | undefined {
   );
 }
 
+// Fetch plain text content from a webpage (used to enrich Product Hunt items)
+async function fetchPageText(url: string, maxLength = 1500): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "ai-cases-scout/1.0 (automated research tool)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    // Strip scripts, styles, and tags; collapse whitespace
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return text.slice(0, maxLength);
+  } catch {
+    return "";
+  }
+}
+
 async function fetchHackerNews(): Promise<Article[]> {
   const LOOKBACK_HOURS = 12;
   const cutoff = Math.floor(Date.now() / 1000) - LOOKBACK_HOURS * 3600;
@@ -130,8 +152,14 @@ async function fetchRSS(): Promise<Article[]> {
         if (feedCount >= MAX_PER_FEED) break;
         if (!item.title || !item.link) continue;
 
-        const content = (item.contentSnippet ?? item.content ?? "").slice(0, 500);
+        let content = (item.contentSnippet ?? item.content ?? "").slice(0, 500);
         const imageUrl = extractRssImage(item as any);
+
+        // Product Hunt RSS has minimal content — fetch the page to get a real description
+        if (feed.source === "Product Hunt" && content.length < 200 && item.link) {
+          const pageText = await fetchPageText(item.link, 1500);
+          if (pageText.length > content.length) content = pageText;
+        }
 
         articles.push({
           title: item.title,
