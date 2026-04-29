@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vercel dev",
     "build": "tsc --noEmit",
     "test:collect": "ts-node --esm api/collect.ts"
   },
@@ -14,9 +13,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@vercel/node": "^5.6.15",
     "ts-node": "^10.9.2",
-    "typescript": "^5.0.0",
-    "vercel": "^39.0.0"
+    "typescript": "^5.0.0"
   }
 }

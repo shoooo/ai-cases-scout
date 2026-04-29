@@ -32,7 +32,7 @@ Hacker News、Reddit、TechCrunch等からAI関連の記事を収集し、Claude
 ## アーキテクチャ
 
 ```
-Vercel Cron/HTTP → api/collect.ts → src/sources.ts
+GitHub (source) → api/collect.ts → src/sources.ts
                                     ↓
                               src/evaluator.ts (Claude API)
                                     ↓
@@ -52,7 +52,6 @@ npm install
 ```
 ANTHROPIC_API_KEY=sk-ant-xxx
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx
-CRON_SECRET=your-cron-secret  # 本番Cron用認証
 ```
 
 ## 開発
@@ -63,21 +62,16 @@ npm run test:collect
 
 # TypeScriptチェック
 npm run build
-
-# Vercel開発サーバー
-npm run dev
 ```
 
-## デプロイ
+## 実行方法
 
 ```bash
-vercel --prod
-```
+# 手動実行
+npm run test:collect
 
-Cron設定は`vercel.json`で管理。手動実行時は:
-
-```bash
-curl -H "Authorization: Bearer $CRON_SECRET" https://your-domain.vercel.app/api/collect
+# または直接
+ts-node --esm api/collect.ts
 ```
 
 ## 関連リソース
