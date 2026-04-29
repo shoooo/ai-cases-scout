@@ -77,7 +77,9 @@ async function run(): Promise<{ checked: number; useCases: number }> {
   // 3. Evaluate with Claude
   console.log("\n[2] Evaluating with Claude...");
   const evaluated = await evaluateArticles(articles);
-  const useCases = evaluated.filter((a) => a.evaluation.is_use_case || a.evaluation.is_product_launch);
+  const useCases = evaluated
+    .filter((a) => a.evaluation.is_use_case || a.evaluation.is_product_launch)
+    .sort((a, b) => b.evaluation.priority_score - a.evaluation.priority_score);
   console.log(`Use cases identified: ${useCases.length} / ${evaluated.length}`);
 
   // 4. Notify Slack
