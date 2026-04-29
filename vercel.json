@@ -1,8 +1,5 @@
 {
   "buildCommand": "",
   "outputDirectory": ".",
-  "crons": [
-    { "path": "/api/collect", "schedule": "0 21 * * *" },
-    { "path": "/api/collect", "schedule": "0 12 * * *" }
-  ]
+  "crons": []
 }
