@@ -77,4 +77,3 @@ ts-node --esm api/collect.ts
 ## 関連リソース
 
 - [Claude API](https://docs.anthropic.com/)
-- [Vercel Cron](https://vercel.com/docs/cron-jobs)
