@@ -129,10 +129,8 @@ async function fetchRSS(): Promise<Article[]> {
     // コラム・海外AI雰囲気
     { url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", source: "The Verge AI" },
     { url: "https://www.wired.com/feed/tag/ai/latest/rss", source: "Wired AI" },
-    { url: "https://a16z.com/feed/", source: "a16z" },
     // 企業技術ブログ
-    { url: "https://ramp.com/blog/engineering/rss", source: "Ramp Engineering" },
-    { url: "https://www.anthropic.com/blog/rss.xml", source: "Anthropic" },
+    { url: "https://feeds.bloomberg.com/markets/news.rss", source: "Bloomberg Tech" },
   ];
 
   const parser = new RSSParser({

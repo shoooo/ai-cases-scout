@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { fetchAllArticles } from "../src/sources";
 import { evaluateArticles } from "../src/evaluator";
 import { sendSlackNotification } from "../src/slack";
@@ -90,32 +89,8 @@ async function run(): Promise<{ checked: number; useCases: number }> {
   return { checked: articles.length, useCases: useCases.length };
 }
 
-// Vercel Serverless Function handler
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (process.env.NODE_ENV === "production") {
-    const authHeader = req.headers["authorization"];
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-  }
-
-  try {
-    const result = await run();
-    return res.status(200).json({ ok: true, ...result });
-  } catch (err) {
-    console.error("Collection failed:", err);
-    return res.status(500).json({ ok: false, error: String(err) });
-  }
-}
-
-// Allow running directly with ts-node
-const isDirectRun =
-  process.argv[1]?.endsWith("collect.ts") || process.argv[1]?.endsWith("collect.js");
-
-if (isDirectRun) {
-  loadEnvLocal();
-  run().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
-}
+loadEnvLocal();
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
