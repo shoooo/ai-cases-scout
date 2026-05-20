@@ -118,6 +118,48 @@ async function fetchReddit(): Promise<Article[]> {
   return articles;
 }
 
+async function fetchAnthropicEngineering(): Promise<Article[]> {
+  try {
+    const res = await fetch("https://www.anthropic.com/engineering", {
+      headers: { "User-Agent": "ai-cases-scout/1.0 (automated research tool)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+
+    const html = await res.text();
+
+    // Extract article links and titles from the page
+    // Look for common patterns like href="/research/..." or similar
+    const linkPattern = /href="([^"]*engineering[^"]*)"\s*[^>]*>\s*([^<]+)<\/a>/gi;
+    const articles: Article[] = [];
+    let match;
+
+    while ((match = linkPattern.exec(html)) !== null) {
+      let url = match[1];
+      const title = match[2].trim().slice(0, 100);
+
+      if (!url.startsWith("http")) {
+        url = "https://www.anthropic.com" + url;
+      }
+
+      if (title && !articles.some(a => a.url === url)) {
+        const content = await fetchPageText(url, 500);
+        articles.push({
+          title,
+          url,
+          content: content || title,
+          source: "Anthropic Engineering",
+        });
+      }
+    }
+
+    return articles.slice(0, 5);
+  } catch (err) {
+    console.warn("Anthropic Engineering fetch failed:", err);
+    return [];
+  }
+}
+
 async function fetchRSS(): Promise<Article[]> {
   const feeds = [
     // News
@@ -179,10 +221,11 @@ async function fetchRSS(): Promise<Article[]> {
 }
 
 export async function fetchAllArticles(): Promise<Article[]> {
-  const [hn, reddit, rss] = await Promise.allSettled([
+  const [hn, reddit, rss, anthropic] = await Promise.allSettled([
     fetchHackerNews(),
     fetchReddit(),
     fetchRSS(),
+    fetchAnthropicEngineering(),
   ]);
 
   const all: Article[] = [];
@@ -194,6 +237,9 @@ export async function fetchAllArticles(): Promise<Article[]> {
 
   if (rss.status === "fulfilled") all.push(...rss.value);
   else console.warn("RSS fetch failed:", rss.reason);
+
+  if (anthropic.status === "fulfilled") all.push(...anthropic.value);
+  else console.warn("Anthropic Engineering fetch failed:", anthropic.reason);
 
   // Deduplicate by URL within a single run
   const seenUrls = new Set<string>();
@@ -207,7 +253,8 @@ export async function fetchAllArticles(): Promise<Article[]> {
     hn: hn.status === "fulfilled" ? hn.value.length : 0,
     reddit: reddit.status === "fulfilled" ? reddit.value.length : 0,
     rss: rss.status === "fulfilled" ? rss.value.length : 0,
+    anthropic: anthropic.status === "fulfilled" ? anthropic.value.length : 0,
   };
-  console.log(`Fetched ${deduped.length} articles total after dedup (HN: ${counts.hn}, Reddit: ${counts.reddit}, RSS: ${counts.rss})`);
+  console.log(`Fetched ${deduped.length} articles total after dedup (HN: ${counts.hn}, Reddit: ${counts.reddit}, RSS: ${counts.rss}, Anthropic: ${counts.anthropic})`);
   return deduped;
 }
